@@ -2,24 +2,14 @@ import os
 import sys
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
-# ApplicationHook Import ကို ဖြုတ်လိုက်သည်။
 from typing import Final
-from waitress import serve
 
 # === 1. Environment Configuration ===
+# Polling အတွက် Render Variables တွေ မလိုအပ်တော့ပါ။ BOT_TOKEN သာ လိုသည်။
 BOT_TOKEN: Final[str | None] = os.getenv("BOT_TOKEN")
 
 if not BOT_TOKEN:
     sys.exit("❌ FATAL: BOT_TOKEN Environment Variable ကို Render တွင် မတွေ့ပါ!")
-
-PORT: Final[int] = int(os.environ.get("PORT", 8080))
-WEBHOOK_PATH: Final[str] = f"/{BOT_TOKEN}"
-WEBHOOK_URL: Final[str | None] = os.getenv("RENDER_EXTERNAL_URL")
-
-if not WEBHOOK_URL:
-    sys.exit("❌ FATAL: RENDER_EXTERNAL_URL မတွေ့ပါ! Render ပေါ်မှာ run နေကြောင်း သေချာပါစေ။")
-
-FULL_WEBHOOK_URL: Final[str] = f"https://{WEBHOOK_URL}{WEBHOOK_PATH}"
 
 # === 2. Handlers (Functions) ===
 
@@ -35,36 +25,24 @@ async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message and update.message.text:
         await update.message.reply_text(f"သင်ပို့တာ → {update.message.text}")
 
-# === 3. Application Setup Function ===
-def setup_application() -> Application:
-    """Application ကို တည်ဆောက်ပြီး Handlers များ ထည့်သွင်းပေးသည်။"""
-    app = Application.builder().token(BOT_TOKEN).build()
-
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
-    
-    return app
-
-# === 4. Main Function ===
+# === 3. Main Function ===
 
 def main():
-    print("✅ Bot Application ကို တည်ဆောက်နေပါပြီ...")
+    print("✅ Polling Mode ဖြင့် Bot Application ကို စတင်တည်ဆောက်နေပါပြီ...")
     
-    application = setup_application()
+    # Application ကို Build လုပ်မည်
+    application = Application.builder().token(BOT_TOKEN).build()
+
+    # Handlers များ ထည့်သွင်းခြင်း
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
+
+    # --- PTB 20.x အတွက် Polling Mode Setup ---
+    print("🚀 Bot ကို Polling Mode ဖြင့် စတင်နေပါပြီ... (Continuous Mode)")
     
-    # Webhook URL ကို သတ်မှတ်ခြင်း (Telegram Server သို့)
-    print(f"🔥 Webhook URL ကို သတ်မှတ်နေပါသည်... {FULL_WEBHOOK_URL}")
-    application.bot.set_webhook(url=FULL_WEBHOOK_URL)
-
-    # PTB Webhook Handler (WSGI compatible) ကို ရယူခြင်း
-    webhook_handler = application.get_webhook_handler()
-
-    # application ကို စတင်ရန် post_init hook ကို ခေါ်ဆိုခြင်း (Webhook Server Run မလုပ်ခင် လိုအပ်သည်)
-    application.post_init() # Parameter မပါဘဲ ခေါ်လိုက်ပါပြီ။
-
-    print(f"🚀 Waitress Server ကို {PORT} တွင် စတင်နေပါပြီ...")
-    # Waitress server ကို အသုံးပြုပြီး Webhook Handler ကို Run ခြင်း
-    serve(webhook_handler, host="0.0.0.0", port=PORT)
+    # run_polling() သည် ယခင်က Error တက်စေသော Webhook Logic များကို ရှောင်ရှားပေးသည်။
+    # Polling သည် စက်က အမြဲတမ်း ဖွင့်ထားရန် လိုအပ်ပါသည်။
+    application.run_polling(poll_interval=1.0) # 1.0 စက္ကန့်ခြား တစ်ခါ စစ်ဆေးမည်
 
 if __name__ == "__main__":
     main()
