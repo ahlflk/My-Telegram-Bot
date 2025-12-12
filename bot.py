@@ -1,3 +1,4 @@
+# bot.py
 import os
 import logging
 from telegram import Update
@@ -13,12 +14,14 @@ if not BOT_TOKEN:
 
 # Render provides PORT env var for web services
 PORT = int(os.getenv("PORT", "10000"))
-# PUBLIC_URL should be your Render service HTTPS URL e.g. https://my-bot.onrender.com
-PUBLIC_URL = os.getenv("PUBLIC_URL")  # set this in Render env vars
+
+# PUBLIC_URL should be your Render service HTTPS URL, e.g. https://my-bot.onrender.com
+PUBLIC_URL = os.getenv("https://my-telegram-bot-b9h7.onrender.com")  # set this in Render env vars
 if not PUBLIC_URL:
     raise RuntimeError("PUBLIC_URL env var not defined — set it to your onrender.com url")
 
-WEBHOOK_PATH = f"/webhook/{BOT_TOKEN}"        # path on your server (keeps it secret-ish)
+# Keep webhook path a little secret by including BOT_TOKEN
+WEBHOOK_PATH = f"/webhook/{BOT_TOKEN}"
 WEBHOOK_URL = f"{PUBLIC_URL}{WEBHOOK_PATH}"  # final webhook URL to register with Telegram
 
 # Handlers
@@ -36,7 +39,6 @@ def main():
     application.add_handler(CommandHandler("start", start))
     application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), echo))
 
-    # Start webhook server (built-in aiohttp-based)
     logger.info("Setting webhook to %s", WEBHOOK_URL)
     # run_webhook will:
     #  - bind to 0.0.0.0:PORT
